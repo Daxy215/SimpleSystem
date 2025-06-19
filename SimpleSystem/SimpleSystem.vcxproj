@@ -157,6 +157,7 @@
     <ClCompile Include="kernal\idt\idt.c" />
     <ClCompile Include="kernal\kernel.c" />
     <ClCompile Include="kernal\keyboard\keyboard.c" />
+    <ClCompile Include="kernal\memory\filesystem\filesystem.c" />
     <ClCompile Include="kernal\memory\paging.c" />
     <ClCompile Include="kernal\mouse\mouse.c" />
     <ClCompile Include="kernal\pic\pic.c" />
@@ -168,6 +169,7 @@
     <ClInclude Include="kernal\idt\idt.h" />
     <ClInclude Include="kernal\io.h" />
     <ClInclude Include="kernal\keyboard\keyboard.h" />
+    <ClInclude Include="kernal\memory\filesystem\filesystem.h" />
     <ClInclude Include="kernal\memory\paging.h" />
     <ClInclude Include="kernal\mouse\mouse.h" />
     <ClInclude Include="kernal\pic\pic.h" />
