@@ -1,6 +1,6 @@
 ﻿#include "idt.h"
 
-#include "../Serial/serial.h"
+#include "../serial/serial.h"
 
 extern void load_idt_asm(u32);
 

@@ -2,6 +2,10 @@
 
 #include "../../io.h"
 
+// This should always be the same
+// TODO; Check for other types
+#define END_OF_CLUSTER_MARKER 0xFFF8
+
 // According to: https://wiki.osdev.org/FAT
 #pragma pack(push, 1)
 
@@ -91,8 +95,32 @@ typedef struct {
 FAT_BootSector* bs;
 DirEntry* entries;
 
-extern void fs_init(u8 partition_start = 28);
+enum FatType {
+    FAT12,
+    FAT16,
+    FAT32,
+    ExFAT
+};
+
+typedef struct {
+    u8 sectors_per_cluster; // TODO; Remove
+
+    u16 bytes_per_sector; // TODO; Remove
+
+    u32 totalNumOfDataSectors;
+    u32 total_clusters;
+    u32 root_dir_start;
+    u32 root_dir_sectors;
+    u32 first_data_sector;
+    u32 total_sectors;
+    u32 bytes_per_cluster;
+
+    FAT_BootSector* bs;
+} FATSystem;
+
+// 28
+extern FATSystem* fs_createSystem(u8 partition_start);
 extern void fs_refreshEntries(void);
 
-extern void fs_open(const char* name);
+extern void fs_open(DirEntry* file);
 extern void fs_write(const char* name);

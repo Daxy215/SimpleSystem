@@ -59,21 +59,14 @@ extern isr_handler_c
 isr_common_stub:
     cli
 
-    ; Stack now contains (top -> bottom):
-    ; [int_no] (pushed by macro)
-    ; [err_code] (pushed by macro or CPU)
-    ; [eip]
-    ; [cs]
-    ; [eflags]
-
-    pusha                  ; Push general purpose registers: edi, esi, ebp, esp, ebx, edx, ecx, eax
-
+    pusha                  ; Push general-purpose registers (eax, ebx, etc.)
+    
     push ds
     push es
     push fs
     push gs
 
-    ; Load kernel data segment selectors into segment registers
+    ; Set up segment registers for kernel mode
     mov ax, 0x10           ; Kernel data segment selector (change if different)
     mov ds, ax
     mov es, ax
@@ -88,21 +81,22 @@ isr_common_stub:
     ; eip, cs, eflags (already on stack pushed by CPU)
 
     mov eax, esp           ; pointer to registers_t struct
-    push eax
-    call isr_handler_c
-    add esp, 4             ; Clean up argument from stack
+    push eax               ; Push the pointer to registers_t for C handler
+    call isr_handler_c     ; Call the C handler to process the exception
 
-    pop gs
+    add esp, 4             ; Clean up argument from stack (removes pointer to registers_t)
+
+    pop gs                 ; Restore segment registers
     pop fs
     pop es
     pop ds
 
-    popa                   ; Restore general purpose registers
+    popa                   ; Restore general-purpose registers
 
     add esp, 8             ; Remove int_no and err_code from stack (2 dwords)
 
-    sti
-    iret
+    sti                    ; Re-enable interrupts
+    iret                   ; Return from interrupt
 
 ; --- IDT loader ---
 global load_idt_asm

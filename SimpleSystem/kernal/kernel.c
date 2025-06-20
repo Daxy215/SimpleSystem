@@ -68,53 +68,91 @@ typedef struct {
     u32 eip, cs, eflags;
 } registers_t;
 
-void print_stack_trace(const registers_t* regs) {
-    u32* ebp = (u32*)regs->ebp;
+#define KERNEL_STACK_BASE  0x00001000   // Stack starts at 4KB
+#define KERNEL_STACK_TOP   0x00100000   // Stack ends at 1MB (example)
+
+bool is_valid_addr(uintptr_t addr) {
+    return addr >= KERNEL_STACK_BASE &&
+           addr < KERNEL_STACK_TOP &&
+           (addr % 4 == 0);  // Ensure 4-byte alignment
+}
+
+void print_stack_trace(uintptr_t ebp) {
+    printf(">>> Starting stack trace from EBP: %x\n", ebp);
     
-    printf("\n--- Stack Trace (from EBP=");
-    printf("%x", ebp);
-    printf(") ---\n");
+    int frame = 0;
     
-    u8 frame = 0;
-    u8 max_frames = 16;
-    
-    // Add kernel stack boundary check
-    u32 stack_start = 0x1000;
-    u32 stack_end = 0xFFFFF000;
-    
-    printf("\n");
-    
-    for(int i = 0; i < 5; i++) {
-        printf("Edp; %d\n", ebp[i]);
-    }
-    
-    printf("\n");
-    
-    while (ebp && (frame < max_frames)) {
-        // Check if EBP is within kernel stack
-        if ((u32)ebp < stack_start || (u32)ebp > stack_end - 8) {
-            printf("  Invalid EBP: 0x%x (frame %d)\n", ebp, frame);
+    while (frame < 32 && ebp && is_valid_addr(ebp) && is_valid_addr(ebp + 4)) {
+        uintptr_t *frame_ptr = (uintptr_t *)ebp;
+        uintptr_t next_ebp = frame_ptr[0];
+        uintptr_t ret_addr = frame_ptr[1];
+        
+        if (!is_valid_addr(ret_addr)) {
+            printf("  Invalid EIP: %x (frame %d)\n", ret_addr, frame);
             break;
         }
         
-        // Check if return address is in kernel code
-        u32 return_eip = ebp[1];
-        if (return_eip < 0x100000 || return_eip > 0xFFFF0000) { // Adjust bounds
-            printf("  Invalid EIP: %x (frame)\n", return_eip);
-            break;
-        }
+        printf("  Frame %x: EBP=%x, RET=%x\n", frame, ebp, ret_addr);
         
-        printf("Frame %d: EBP=%x  EIP=%x\n", frame, ebp, return_eip);
-        
-        ebp = (u32*)*ebp;  // Next frame
+        if (next_ebp == 0 || next_ebp <= ebp) break; // prevent infinite loop
+
+        ebp = next_ebp;
         frame++;
     }
-    
-    if (frame == 0)
-        printf("  No valid stack frames found\n");
-    
-    printf("--- End of Stack Trace ---\n\n");
+
+    printf("Stack ended");
 }
+
+// void print_stack_trace(const registers_t* regs) {
+//     printf("Stack Pointer: %x\n", regs->esp);
+//     printf("Stack start: 0x1000, Stack end: 0xFFFFF000\n");
+        
+//     u32* ebp = (u32*)regs->ebp;
+
+//     printf("\n--- Stack Trace (from EBP=");
+//     printf("%x", ebp);
+//     printf(") ---\n");
+    
+//     u8 frame = 0;
+//     u8 max_frames = 16;
+    
+//     // Add kernel stack boundary check
+//     u32 stack_start = 0x1000;
+//     u32 stack_end = 0xFFFFF000;
+    
+//     printf("\n");
+    
+//     for(int i = 0; i < 5; i++) {
+//         printf("Edp; %d\n", ebp[i]);
+//     }
+    
+//     printf("\n");
+    
+//     while (ebp && (frame < max_frames)) {
+//         // Check if EBP is within kernel stack
+//         if ((u32)ebp < stack_start || (u32)ebp > stack_end - 8) {
+//             printf("  Invalid EBP: 0x%x (frame %d)\n", ebp, frame);
+//             break;
+//         }
+        
+//         // Check if return address is in kernel code
+//         u32 return_eip = ebp[1];
+//         if (return_eip < 0x100000 || return_eip > 0xFFFF0000) { // Adjust bounds
+//             printf("  Invalid EIP: %x (frame)\n", return_eip);
+//             break;
+//         }
+        
+//         printf("Frame %d: EBP=%x  EIP=%x\n", frame, ebp, return_eip);
+        
+//         ebp = (u32*)*ebp;  // Next frame
+//         frame++;
+//     }
+    
+//     if (frame == 0)
+//         printf("  No valid stack frames found\n");
+    
+//     printf("--- End of Stack Trace ---\n\n");
+// }
 
 void isr_handler_c(registers_t* regs) {
     const char* exception_messages[] = {
@@ -389,234 +427,10 @@ void kernel_main(void) {
     }
     */
     
-    u8 buffer[512];
-    lba_read(partition_start, 1, buffer);
-    
-    FAT_BootSector* bs = (FAT_BootSector*)buffer;
-    
-    if (bs->signature != 0xAA55) {
-        printf("Invalid boot sector signature: %x\n", bs->signature);
-        
-        return;
-    }
-    
-    printf("Bytes per sector: %d\n", (unsigned int)bs->common.bytes_per_sector);
-    printf("Sectors per cluster: %d\n", (unsigned int)bs->common.sectors_per_cluster);
-    
-    if (bs->common.root_entry_count == 0) {
-        // Likely FAT32
-        printf("FAT type: FAT32\n");
-        
-        printf("Root cluster: %x\n", bs->ebpb.f32.root_cluster);
-    } else {
-        // Likely FAT16
-        printf("FAT type: FAT16\n");
-        
-        char vol_label[12]; // 11 chars + 1 null terminator
-        u8* src = bs->ebpb.f16.volume_label;
-        
-        for (int i = 0; i < 11; i++) {
-            vol_label[i] = src[i];
-        }
-        
-        vol_label[11] = '\0';
-        
-        printf("Volume label: %s\n", vol_label);
-        printf("Volume id: %d\n", bs->ebpb.f16.drive_number);
-    }
-    
-    // ROOT_DIR_SECTORS = (MAX_ROOT_ENTRIES * 32 + BYTES_PER_SECTOR - 1) // BYTES_PER_SECTOR  # round up
-    // FIRST_DATA_SECTOR = RESERVED_SECTORS + (NUM_FATS * FAT_SIZE_SECTORS) + ROOT_DIR_SECTORS
-    
-    //u32 first_fat_sector = bs->common.reserved_sector_count + (bs->common.fat_count * bs->common.fat_size_16) + root_dir_sectors;
-    //unsigned int fat_sector = first_fat_sector + (fat_offset / sector_size);
-    
-    // FAT16 specific calculation:
-    /*u32 root_dir_sectors = ((bs->common.root_entry_count * 32) + (bs->common.bytes_per_sector - 1)) / bs->common.bytes_per_sector;
-    u32 first_data_sector = bs->common.reserved_sector_count +
-                            (bs->common.fat_count * bs->common.fat_size_16) +
-                            root_dir_sectors;*/
-    
-    u32 root_dir_start = bs->common.reserved_sector_count +
-                      (bs->common.fat_count * bs->common.fat_size_16);
-    
-    u32 root_dir_sectors = ((bs->common.root_entry_count * 32) + (bs->common.bytes_per_sector - 1)) / bs->common.bytes_per_sector;
-    u16 bytes_per_sector = bs->common.bytes_per_sector;
-    u8 sectors_per_cluster = bs->common.sectors_per_cluster;
-    
-    u32 first_data_sector = bs->common.reserved_sector_count +
-                            (bs->common.fat_count * bs->common.fat_size_16) +
-                            root_dir_sectors;
-    
-    u32 total_sectors = bs->common.total_sectors_16 ?
-                        bs->common.total_sectors_16 :
-                        bs->common.total_sectors_32;
-    
-    #define sector_size bs->common.bytes_per_sector
-    
-    // Read data
-    #define ROOT_DIR_SECTORS 32
-    #define ROOT_DIR_BYTES (ROOT_DIR_SECTORS * sector_size)
-    
-    u8 RootDirBuffer[ROOT_DIR_BYTES];
-    
-    lba_read(root_dir_start, root_dir_sectors, RootDirBuffer);
-    
-    printf("Size: %x\n", ROOT_DIR_BYTES);
-    
-    // Max possible amount of files (For FAT16)
-    DirEntry* entires[ROOT_DIR_BYTES / 32];
-    u16 entriesCount = 0;
-    
-    for (int i = 0; i < ROOT_DIR_BYTES; i += 32) {
-        DirEntry* entry = (DirEntry*)&RootDirBuffer[i];
-        
-        if (entry->name[0] == 0x00) {
-            // a null file
-            continue;
-        }
-        
-        if ((u8)entry->name[0] == 0xE5) {
-            printf("Skipp1\n");
-            continue;
-        }
-        
-        char name[12];
-        u8* src = entry->name;
-        
-        for (int i = 0; i < 11; i++) {
-            name[i] = src[i];
-        }
-        
-        name[11] = '\0';
-        
-        printf("Name: %s Attr: %x Size: %x Cluster: %x\n",
-               name, entry->attr, entry->size, entry->low_cluster);
-        
-        entires[entriesCount++] = entry;
-    }
-    
-    #define END_OF_CLUSTER_MARKER 0xFFF8
-    
-    DirEntry* fileToRead = entires[1];
-    
-    char name[12];
-    u8* src = fileToRead->name;
-    
-    for (int i = 0; i < 11; i++) {
-        name[i] = src[i];
-    }
-    
-    name[11] = '\0';
-    
-    printf("Reading %s\n", name);
-    printf("File size: %x bytes\n", fileToRead->size);
-    
-    size_t sector_count = (fileToRead->size + 511) / 512;
-    printf("Sectors to read from file: %x\n", sector_count);
-    u8* fileBufer = memalign(4096, sector_count * 512);
-    
-    printf("Reading file...\n");
-    
-    printf("First data sector: 0x%x\n", first_data_sector);
-    printf("Total sectors: 0x%x\n", total_sectors);
-    
-    // Start reading file
-    u16 cluster = fileToRead->low_cluster;
-    u32 offset = 0;
-    
-    printf("FAT details:\n");
-    printf("  Reserved sectors: %x\n", bs->common.reserved_sector_count);
-    printf("  FAT size: %x sectors\n", bs->common.fat_size_16);
-    printf("  Bytes per sector: %x\n", bytes_per_sector);
-    printf("  First data sector: %x\n", first_data_sector);
-    printf("  Total sectors: %x\n", total_sectors);
-    
-    u32 totalNumOfDataSectors = total_sectors - (bs->common.reserved_sector_count + (bs->common.fat_count * bs->common.fat_size_16) + root_dir_sectors);
-    u32 total_clusters = totalNumOfDataSectors / bs->common.sectors_per_cluster;
-    
-    if (bytes_per_sector == 0) {
-        //fat_type = ExFAT;
-        printf("EXFAT\n");
-    } else if(total_clusters < 4085) {
-        //fat_type = FAT12;
-        printf("FAT12\n");
-    } else if(total_clusters < 65525) {
-        //fat_type = FAT16;
-        printf("FAT16\n");
-    } else {
-        //fat_type = FAT32;
-        printf("FAT32\n");
-    }
-    
-    u32 bytes_per_cluster = bytes_per_sector * sectors_per_cluster;
-    
-    /**
-     * If "table_value" is greater than or equal to (>=) 0xFFF8,
-     * then there are no more clusters in the chain.
-     * This means that the whole file has been read.
-     * If "table_value" equals (==) 0xFFF7 then this,
-     * cluster has been marked as "bad".
-     * "Bad" clusters are prone to errors and should be avoided.
-     * If "table_value" is not one of the above cases then,
-     * it is the cluster number of the next cluster in the file.
-     */
-    while (cluster >= 0x0002 && cluster < 0xFFF0) {
-        u32 sector = first_data_sector + (cluster - 2) * sectors_per_cluster;
-        
-        lba_read(partition_start + sector, sectors_per_cluster, fileBufer + offset);
-        
-        offset += bytes_per_cluster;
-        
-        // Read next FAT entry
-        u32 fat_offset = cluster * 2;
-        u32 fat_sector = bs->common.reserved_sector_count + (fat_offset / bytes_per_sector);
-        u32 ent_offset = fat_offset % bytes_per_sector;
-        
-        u8 fat_buffer[bytes_per_sector];
-        if (!lba_read(partition_start + fat_sector, 1, fat_buffer)) {
-            printf("FAT read failed at sector %x\n", fat_sector);
-            
-            break;
-        }
-        
-        // Check FAT signature
-        /*if (fat_buffer[0] != bs->common.media_type) {
-            printf("FAT signature mismatch: expected %x, got %x\n",
-                   bs->common.media_type, fat_buffer[0]);
-            
-            break;
-        }*/
-        
-        //u16 next_cluster = *(unsigned short*)&fat_buffer[ent_offset];
-        u16 next_cluster = (u16)fat_buffer[ent_offset] | 
-                           (u16)(fat_buffer[ent_offset + 1] << 8);
-        
-        // Try secondary FAT if entry is zero
-        if (next_cluster == 0 && bs->common.fat_count > 1) {
-            printf("Trying secondary FAT...\n");
-            
-            u32 secondary_fat = fat_sector + bs->common.fat_size_16;
-            if (!lba_read(partition_start + secondary_fat, 1, fat_buffer)) {
-                printf("Secondary FAT read failed\n");
-                break;
-            }
-            
-            next_cluster = (u16)fat_buffer[ent_offset] | 
-                           (u16)(fat_buffer[ent_offset + 1] << 8);
-            
-            printf("Secondary FAT entry: %x -> %x\n", cluster, next_cluster);
-        }
-        
-        cluster = next_cluster;
-    }
-    
-    printf("File has been fully read!\n");
-    
-    if (fileBufer[0] != 'B' || fileBufer[1] != 'M') {
-        printf("Not a valid BMP file! 0=%d 1=%d\n", fileBufer[0], fileBufer[1]);
-        return;
-    }
+    //if (fileBufer[0] != 'B' || fileBufer[1] != 'M') {
+    //    printf("Not a valid BMP file! 0=%d 1=%d\n", fileBufer[0], fileBufer[1]);
+    //    return;
+    //}
     
     // Main loop
     while(1) {

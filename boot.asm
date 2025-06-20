@@ -22,8 +22,9 @@ _start:
     mov ax, 0x1000
     mov es, ax
     mov bx, 0x0000
-    mov ax, [es:bx]            ; Load from address into EAX
+    ; mov ax, [es:bx]            ; Load from address into EAX
     ; movzx eax, word [es:bx]
+    mov eax, [es:bx]
     
     call print_hex
     call print_newline
@@ -287,8 +288,8 @@ gdt_descriptor:
     dw gdt_end - gdt_start - 1
     dd gdt_start
 
-CODE_SEG equ gdt_code - gdt_start
-DATA_SEG equ gdt_data - gdt_start
+CODE_SEG equ (gdt_code - gdt_start) | 0x08
+DATA_SEG equ (gdt_data - gdt_start) | 0x10
 
 msg_loading    db "Loading...",0
 msg_vesa_fail  db "VESA fail!",0
