@@ -95,18 +95,19 @@ typedef struct {
 FAT_BootSector* bs;
 DirEntry* entries;
 
-enum FatType {
+typedef enum {
     FAT12,
     FAT16,
     FAT32,
     ExFAT
-};
+} FatType;
 
 typedef struct {
     u8 sectors_per_cluster; // TODO; Remove
 
     u16 bytes_per_sector; // TODO; Remove
-
+    
+    u32 total_sectors;
     u32 totalNumOfDataSectors;
     u32 total_clusters;
     u32 root_dir_start;
@@ -115,6 +116,7 @@ typedef struct {
     u32 total_sectors;
     u32 bytes_per_cluster;
 
+    FatType type;
     FAT_BootSector* bs;
 } FATSystem;
 

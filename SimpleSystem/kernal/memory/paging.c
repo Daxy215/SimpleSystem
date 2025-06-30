@@ -2,40 +2,6 @@
 
 #include "../serial/serial.h"
 
-void* memset(void* ptr, int value, size_t num) {
-    u8* p = (u8*)ptr;
-    while(num--) *p++ = (u8)value;
-    return ptr;
-}
-
-#define MAX_MEM_SIZE (12000 * 512)
-
-static u8 mem_buffer[MAX_MEM_SIZE];
-static size_t mem_offset = 0;
-
-void* memalign(size_t alignment, size_t size) {
-    // Align current offset to requested alignment
-    size_t addr = (size_t)(mem_buffer + mem_offset);
-    size_t aligned_addr = (addr + alignment - 1) & ~(alignment - 1);
-    size_t offset_diff = aligned_addr - addr;
-    
-    printf("Reading %x = %x = %x which all is = %x\n", size, offset_diff, mem_offset, mem_offset + offset_diff + size);
-    
-    if (mem_offset + offset_diff + size > MAX_MEM_SIZE) {
-        // Out of memory in buffer
-        printf("Out of memory.. Needs %x more\n", ((mem_offset + offset_diff + size) - MAX_MEM_SIZE));
-        
-        return NULL;
-    }
-    
-    mem_offset += offset_diff;
-    void* ptr = mem_buffer + mem_offset;
-    mem_offset += size;
-
-    return ptr;
-}
-
-
 Pager* pager_create(void) {
     Pager* pager = (Pager*)memalign(4, sizeof(Pager)); // 4-byte aligned
     

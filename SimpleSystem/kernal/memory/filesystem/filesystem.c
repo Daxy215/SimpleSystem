@@ -1,83 +1,65 @@
 ﻿#include "filesystem.h"
 
 // 28
-FATSystem fs_createSystem(u8 partition_start) {
+FATSystem* fs_createSystem(u8 partition_start) {
+    // Create new file system
+    FATSystem* system = (FATSystem*)memalign(8, sizeof(FATSystem));
+    
     u8 buffer[512];
     lba_read(partition_start, 1, buffer);
     
-    FAT_BootSector* bs = (FAT_BootSector*)buffer;
+    system->bs = (FAT_BootSector*)buffer;
+    FAT_BootSector* bs = system->bs;
     
     if (bs->signature != 0xAA55) {
-        printf("Invalid boot sector signature: %x\n", bs->signature);
+        printf("Invalid boot sector signature: %x\n", system->bs->signature);
         
-        return;
+        return nullptr;
     }
+   
+    system->total_sectors = bs->common.bytes_per_sector;
+    system->root_dir_start = bs->common.reserved_sector_count +
+                                (bs->common.fat_count * bs->common.fat_size_16);
     
+    system->root_dir_sectors = ((bs->common.root_entry_count * 32) + (bs->common.bytes_per_sector - 1)) / bs->common.bytes_per_sector;
+    system->bytes_per_sector = bs->common.bytes_per_sector;
+    system->sectors_per_cluster = bs->common.sectors_per_cluster;
+    
+    system->first_data_sector = bs->common.reserved_sector_count +
+                                    (bs->common.fat_count * bs->common.fat_size_16) + system->root_dir_sectors;
+    
+    system->total_sectors = bs->common.total_sectors_16 ? bs->common.total_sectors_16 : bs->common.total_sectors_32;
+    system->bytes_per_cluster = system->bytes_per_sector * system->sectors_per_cluster;
+    
+    system->totalNumOfDataSectors = system->total_sectors - (bs->common.reserved_sector_count + 
+                                        (bs->common.fat_count * bs->common.fat_size_16) + system->root_dir_sectors);
+    
+    system->total_clusters = system->totalNumOfDataSectors / bs->common.sectors_per_cluster;
+    
+     // TODO; Delete later
     printf("Bytes per sector: %d\n", (unsigned int)bs->common.bytes_per_sector);
     printf("Sectors per cluster: %d\n", (unsigned int)bs->common.sectors_per_cluster);
     
-    if (bs->common.root_entry_count == 0) {
-        // Likely FAT32
-        printf("FAT type: FAT32\n");
-        
-        printf("Root cluster: %x\n", bs->ebpb.f32.root_cluster);
-    } else {
-        // Likely FAT16
-        printf("FAT type: FAT16\n");
-        
-        char vol_label[12]; // 11 chars + 1 null terminator
-        u8* src = bs->ebpb.f16.volume_label;
-        
-        for (int i = 0; i < 11; i++) {
-            vol_label[i] = src[i];
-        }
-        
-        vol_label[11] = '\0';
-
-        printf("Volume label: %s\n", vol_label);
-        printf("Volume id: %d\n", bs->ebpb.f16.drive_number);
-    }
-
-    //printf("FAT details:\n");
-    //printf("  Reserved sectors: %x\n", bs->common.reserved_sector_count);
-    //printf("  FAT size: %x sectors\n", bs->common.fat_size_16);
-    //printf("  Bytes per sector: %x\n", bytes_per_sector);
-    //printf("  First data sector: %x\n", first_data_sector);
-    //printf("  Total sectors: %x\n", total_sectors);
+    printf("FAT details:\n");
+    printf("  Reserved sectors: %x\n", bs->common.reserved_sector_count);
+    printf("  FAT size: %x sectors\n", bs->common.fat_size_16);
+    printf("  Bytes per sector: %x\n", system->bytes_per_sector);
+    printf("  First data sector: %x\n", system->first_data_sector);
+    printf("  Total sectors: %x\n", system->total_sectors);
     
-    totalNumOfDataSectors = total_sectors - (bs->common.reserved_sector_count + (bs->common.fat_count * bs->common.fat_size_16) + root_dir_sectors);
-    total_clusters = totalNumOfDataSectors / bs->common.sectors_per_cluster;
-    
-    if (bytes_per_sector == 0) {
-        type = ExFAT;
+    if (system->bytes_per_sector == 0) {
+        system->type = ExFAT;
         printf("EXFAT\n");
-    } else if(total_clusters < 4085) {
-        type = FAT12;
+    } else if(system->total_clusters < 4085) {
+        system->type = FAT12;
         printf("FAT12\n");
-    } else if(total_clusters < 65525) {
-        type = FAT16;
+    } else if(system->total_clusters < 65525) {
+        system->type = FAT16;
         printf("FAT16\n");
     } else {
-        type = FAT32;
+        system->type = FAT32;
         printf("FAT32\n");
     }
-
-    root_dir_start = bs->common.reserved_sector_count +
-                      (bs->common.fat_count * bs->common.fat_size_16);
-    
-    root_dir_sectors = ((bs->common.root_entry_count * 32) + (bs->common.bytes_per_sector - 1)) / bs->common.bytes_per_sector;
-    bytes_per_sector = bs->common.bytes_per_sector;
-    sectors_per_cluster = bs->common.sectors_per_cluster;
-    
-    first_data_sector = bs->common.reserved_sector_count +
-                            (bs->common.fat_count * bs->common.fat_size_16) +
-                            root_dir_sectors;
-    
-    total_sectors = bs->common.total_sectors_16 ?
-                        bs->common.total_sectors_16 :
-                        bs->common.total_sectors_32;
-        
-    bytes_per_cluster = bytes_per_sector * sectors_per_cluster;  
 }
 
 void fs_refreshEntries(void) {
