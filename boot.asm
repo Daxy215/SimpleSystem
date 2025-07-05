@@ -19,12 +19,13 @@ _start:
     call print_newline
     call load_kernal
     
-    mov ax, 0x1000
-    mov es, ax
-    mov bx, 0x0000
-    ; mov ax, [es:bx]            ; Load from address into EAX
-    ; movzx eax, word [es:bx]
-    mov eax, [es:bx]
+    ; I forgot what this even does XD
+   mov ax, 0x1000
+   mov es, ax
+   mov bx, 0x0000
+    mov ax, [es:bx]            ; Load from address into EAX
+    movzx eax, word [es:bx]
+   mov eax, [es:bx]
     
     call print_hex
     call print_newline
@@ -125,10 +126,10 @@ enable_a20:
 DAPACK:
     db 0x10        ; Packet size (16 bytes)
     db 0           ; Always 0
-    dw 128         ; Number of sectors to read
-    dw 0x0000      ; Offset (0x1000:0000 = 0x10000 linear)
-    dw 0x1000      ; Segment
-    dq 1           ; Starting sector (LBA 1 - right after boot sector)
+    dw 128         ; Number of sectors to read - 128
+    dw 0x0000      ; Offset
+    dw 0x1000      ; Segment -> 0x1000 << 4 = 0x1000 (64KBs)
+    dq 1           ; Starting sector
 
 disk_error:
     mov si, msg_disk_error
@@ -253,13 +254,13 @@ protected_mode:
     mov gs, ax
     mov ss, ax
     
-    mov esp, 0x010000 ; 0x00100000
-    
-    ; sti ; TODO; CAUSES GPF Errror 
+    mov esp, 0x90000 ; 0x00100000
     
     ; jmp CODE_SEG:0x0000100d
     jmp CODE_SEG:0x10000
+    ; jmp CODE_SEG:0x0000
     
+    hlt
     ; jmp $               ; Infinite loop?
 
 ; GDT               - TODO; Learn more about this

@@ -8,6 +8,7 @@
 #define PAGE_PRESENT 0x1
 #define PAGE_WRITE 0x2
 #define PAGE_USER 0x4
+#define PAGE_GLOBAL      (1 << 8)
 
 typedef struct {
 	u32* page_directory;
@@ -25,7 +26,7 @@ void pager_enable(Pager* pager);
 void pager_destroy(Pager* pager);
 
 // Memory management
-void* memset(void* ptr, int value, size_t num);
-void* memalign(size_t alignment, size_t size);
+//void* memset(void* ptr, int value, size_t num);
+//void* memalign(size_t alignment, size_t size);
 
 #endif // PAGING_H

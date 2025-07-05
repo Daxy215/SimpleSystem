@@ -185,36 +185,37 @@ static inline void lba_write(u32 lba, u32 count, const void* buffer) {
     }
 }
 
-
-void* memset(void* ptr, int value, size_t num) {
+static void* memset(void* ptr, int value, size_t num) {
     u8* p = (u8*)ptr;
     while(num--) *p++ = (u8)value;
     return ptr;
 }
 
-#define MAX_MEM_SIZE (12000 * 512)
+#define MAX_MEM_SIZE (64 * 1024 * 1024)
 
-static u8 mem_buffer[MAX_MEM_SIZE];
+#define MEM_BUFFER_BASE 0x300000
+static u8* mem_buffer = (u8*)MEM_BUFFER_BASE;
 static size_t mem_offset = 0;
 
-void* memalign(size_t alignment, size_t size) {
-    // Align current offset to requested alignment
+static void* memalign(size_t alignment, size_t size) {
     size_t addr = (size_t)(mem_buffer + mem_offset);
     size_t aligned_addr = (addr + alignment - 1) & ~(alignment - 1);
     size_t offset_diff = aligned_addr - addr;
     
-    printf("Reading %x = %x = %x which all is = %x\n", size, offset_diff, mem_offset, mem_offset + offset_diff + size);
-    
     if (mem_offset + offset_diff + size > MAX_MEM_SIZE) {
-        // Out of memory in buffer
-        printf("Out of memory.. Needs %x more\n", ((mem_offset + offset_diff + size) - MAX_MEM_SIZE));
-        
+        printf("Out of memory! Needed %d more bytes\n",
+               (mem_offset + offset_diff + size) - MAX_MEM_SIZE);
         return NULL;
     }
     
     mem_offset += offset_diff;
-    void* ptr = mem_buffer + mem_offset;
+    void* ptr = (void*)(mem_buffer + mem_offset);
     mem_offset += size;
+    
+    //printf("Allocated %d bytes at %x (total used: %d/%d MB)\n", 
+    //   size, ptr, 
+    //   mem_offset/(1024*1024), 
+    //   MAX_MEM_SIZE/(1024*1024));
     
     return ptr;
 }

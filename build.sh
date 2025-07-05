@@ -18,6 +18,7 @@ nasm ../isr_stubs.asm -g -f elf -o isr_stubs.o || exit 1
 # Build kernel with debug symbols
 echo "Compiling kernel..."
 i686-elf-gcc -m32 -ffreestanding -nostdlib -g -c ../SimpleSystem/kernal/kernel.c -o kernel.o || exit 1
+
 i686-elf-gcc -m32 -ffreestanding -nostdlib -g -c ../SimpleSystem/kernal/decoding/pictures/bmp.c -o bmp.o || exit 1
 i686-elf-gcc -m32 -ffreestanding -nostdlib -g -c ../SimpleSystem/kernal/idt/idt.c -o idt.o || exit 1
 i686-elf-gcc -m32 -ffreestanding -nostdlib -g -c ../SimpleSystem/kernal/serial/serial.c -o serial.o || exit 1

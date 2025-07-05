@@ -3,7 +3,8 @@
 #include "mouse/mouse.h"
 #include "serial/serial.h"
 #include "pic/pic.h"
-#include "decoding/pictures/bmp.h" 
+#include "decoding/pictures/bmp.h"
+#include "memory/filesystem/filesystem.h"
 
 #include "memory/paging.h"
 
@@ -26,8 +27,11 @@ void setup_paging(void) {
         return;
     }
     
-    // Identity map first 8MB (kernel space)
-    pager_identity_map(pager, 0, 8*1024*1024, PAGE_PRESENT | PAGE_WRITE);
+    // 64MB (0x00000000 - 0x04000000)
+    pager_identity_map(pager, 0, 64 * 1024 * 1024, PAGE_PRESENT | PAGE_WRITE);
+    
+    /*pager_identity_map(pager, 0x04000000, 0x2000000,  // 32MB
+                      PAGE_PRESENT | PAGE_WRITE | PAGE_GLOBAL);*/
     
     // Enable paging
     pager_enable(pager);
@@ -36,22 +40,23 @@ void setup_paging(void) {
 // Kernel entry point
 __attribute__((section(".text.start")))
 void _start(void) {
+    u32 stack_ptr;
+    asm volatile("mov %%esp, %0" : "=r"(stack_ptr));
+    printf("Initial ESP: %x\n", stack_ptr);
+    
     isr_install();
     
     // Remap PIC IRQs: master to 0x20, slave to 0x28
     PIC_remap(0x20, 0x28);
     
-    // Enable paging
-    setup_paging();
+    mouse_init();
     
+    //irq_install_handler(0, timer_stub);
     irq_install_handler(2, handleIrq);
     irq_install_handler(12, mouse_irq);
     
-    mouse_init();
-    
-    u32 stack_ptr;
-    asm volatile("mov %%esp, %0" : "=r"(stack_ptr));
-    printf("Initial ESP: %x\n", stack_ptr);
+    // Enable paging
+    setup_paging();
     
     kernel_main();
     
@@ -68,29 +73,20 @@ typedef struct {
     u32 eip, cs, eflags;
 } registers_t;
 
-#define KERNEL_STACK_BASE  0x00001000   // Stack starts at 4KB
-#define KERNEL_STACK_TOP   0x00100000   // Stack ends at 1MB (example)
-
-bool is_valid_addr(uintptr_t addr) {
-    return addr >= KERNEL_STACK_BASE &&
-           addr < KERNEL_STACK_TOP &&
-           (addr % 4 == 0);  // Ensure 4-byte alignment
-}
-
 void print_stack_trace(uintptr_t ebp) {
     printf(">>> Starting stack trace from EBP: %x\n", ebp);
     
     int frame = 0;
     
-    while (frame < 32 && ebp && is_valid_addr(ebp) && is_valid_addr(ebp + 4)) {
+    while (frame < 32 && ebp/* && is_valid_addr(ebp) && is_valid_addr(ebp + 4)*/) {
         uintptr_t *frame_ptr = (uintptr_t *)ebp;
         uintptr_t next_ebp = frame_ptr[0];
         uintptr_t ret_addr = frame_ptr[1];
         
-        if (!is_valid_addr(ret_addr)) {
+        /*if (!is_valid_addr(ret_addr)) {
             printf("  Invalid EIP: %x (frame %d)\n", ret_addr, frame);
             break;
-        }
+        }*/
         
         printf("  Frame %x: EBP=%x, RET=%x\n", frame, ebp, ret_addr);
         
@@ -99,60 +95,9 @@ void print_stack_trace(uintptr_t ebp) {
         ebp = next_ebp;
         frame++;
     }
-
+    
     printf("Stack ended");
 }
-
-// void print_stack_trace(const registers_t* regs) {
-//     printf("Stack Pointer: %x\n", regs->esp);
-//     printf("Stack start: 0x1000, Stack end: 0xFFFFF000\n");
-        
-//     u32* ebp = (u32*)regs->ebp;
-
-//     printf("\n--- Stack Trace (from EBP=");
-//     printf("%x", ebp);
-//     printf(") ---\n");
-    
-//     u8 frame = 0;
-//     u8 max_frames = 16;
-    
-//     // Add kernel stack boundary check
-//     u32 stack_start = 0x1000;
-//     u32 stack_end = 0xFFFFF000;
-    
-//     printf("\n");
-    
-//     for(int i = 0; i < 5; i++) {
-//         printf("Edp; %d\n", ebp[i]);
-//     }
-    
-//     printf("\n");
-    
-//     while (ebp && (frame < max_frames)) {
-//         // Check if EBP is within kernel stack
-//         if ((u32)ebp < stack_start || (u32)ebp > stack_end - 8) {
-//             printf("  Invalid EBP: 0x%x (frame %d)\n", ebp, frame);
-//             break;
-//         }
-        
-//         // Check if return address is in kernel code
-//         u32 return_eip = ebp[1];
-//         if (return_eip < 0x100000 || return_eip > 0xFFFF0000) { // Adjust bounds
-//             printf("  Invalid EIP: %x (frame)\n", return_eip);
-//             break;
-//         }
-        
-//         printf("Frame %d: EBP=%x  EIP=%x\n", frame, ebp, return_eip);
-        
-//         ebp = (u32*)*ebp;  // Next frame
-//         frame++;
-//     }
-    
-//     if (frame == 0)
-//         printf("  No valid stack frames found\n");
-    
-//     printf("--- End of Stack Trace ---\n\n");
-// }
 
 void isr_handler_c(registers_t* regs) {
     const char* exception_messages[] = {
@@ -204,6 +149,7 @@ void isr_handler_c(registers_t* regs) {
     while(1);
 }
 
+// TODO; Move this..
 #define VESA_INFO_ADDR  0x00007E00
 
 #define VESA_X_RES      (*(u16*)(VESA_INFO_ADDR + 0x00))
@@ -272,48 +218,6 @@ static void fillrect(u32 x, u32 y, u8 r, u8 g, u8 b, u32 w, u32 h) {
     }
 }
 
-// 1 = draw white pixel
-// 0 = transparent
-static const u8 mouse_cursor[16][16] = {
-    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-    {1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-    {1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
-    {1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0},
-    {1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0},
-    {1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0},
-    {1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0},
-    {1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},
-    {1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0},
-    {1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0},
-    {1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0},
-    {1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0},
-    {1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0},
-    {1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0},
-    {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0},
-    {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-}; 
-
-static u32 pX, pY;
-
-void draw_cursor(u32 x, u32 y) {
-    for (int i = 0; i < 16; i++) {
-        for (int j = 0; j < 16; j++) {
-            put_pixel(i + pX, j + pY, 0, 0, 0);
-        }
-    }
-    
-    for (int i = 0; i < 16; i++) {
-        for (int j = 0; j < 16; j++) {
-            if (mouse_cursor[i][j]) {
-                put_pixel_rgba(x + j, y + i, 0x20FFFFFF);
-            }
-        }
-    }
-    
-    pX = x;
-    pY = y;
-}
-
 // TODO; Move else where
 i32 floor_div(i32 a, i32 b) {
     i32 q = a / b;
@@ -328,6 +232,7 @@ i32 floor_div(i32 a, i32 b) {
 }
 
 void kernel_main(void) {
+    //return;
     u32 fb_addr = VESA_LFB_PTR;
     u16 fb_width = VESA_X_RES;
     u16 fb_height = VESA_Y_RES;
@@ -337,6 +242,10 @@ void kernel_main(void) {
     u32 fb_size = fb_width * fb_height * (fb_bpp / 8);
     
     // Map framebuffer
+    printf("FB_ADDR: %x\n", fb_addr);
+    u32* vesa_info = (u32*)0x7E00;
+    printf("Framebuffer at %x\n", vesa_info[6]);
+    
     pager_map_range(pager, fb_addr, fb_addr, fb_size, PAGE_PRESENT | PAGE_WRITE);
     
     init_graphics(fb_width, fb_height, fb_bpp, (u8*)fb_addr);
@@ -345,15 +254,20 @@ void kernel_main(void) {
     printf("Graphics: %dx%dx%d @ %x PW=%d\n",
            fb_width, fb_height, fb_bpp, fb_addr, pixelwidth);
     
+    fillrect(100, 100, 255, 0, 0, 200, 200);
+    
+    FATSystem* system = fs_createSystem(34);
+    fs_open(system, &system->entries[1]);
+    
     // Draws a .bmp test image
     /*{
         u8 temp[512];
         lba_read(150, 1, temp);
-    
+        
         BITMAPFILEHEADER* fileHeader = (BITMAPFILEHEADER*)temp;
         u32 full_size = fileHeader->bfSize;
         u32 sector_count = (full_size + 511) / 512;
-    
+        
         printf("Reading %d sectors\n", sector_count);
     
         u8* buffer = memalign(4096, sector_count * 512);
@@ -436,7 +350,7 @@ void kernel_main(void) {
     while(1) {
         handleIrqs();
         
-        draw_cursor(mouse_state.x, mouse_state.y);
-        //fillrect((u32)mouse_state.x, (u32)mouse_state.y, 255, 0, 0, 100, 100);
+        //draw_cursor(mouse_state.x, mouse_state.y);
+        fillrect((u32)mouse_state.x, (u32)mouse_state.y, 255, 0, 0, 100, 100);
     }
 }

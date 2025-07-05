@@ -1,6 +1,5 @@
 [BITS 32]
 
-; Macros to generate ISR handlers
 %macro ISR_NOERR 1
 global isr%1
 isr%1:
@@ -14,7 +13,7 @@ isr%1:
 global isr%1
 isr%1:
     cli
-    push dword %1         ; Interrupt number (CPU already pushed error code)
+    push dword %1         ; Interrupt number
     jmp isr_common_stub
 %endmacro
 
@@ -58,43 +57,43 @@ extern isr_handler_c
 
 isr_common_stub:
     cli
-
+    
     pusha                  ; Push general-purpose registers (eax, ebx, etc.)
     
     push ds
     push es
     push fs
     push gs
-
+    
     ; Set up segment registers for kernel mode
-    mov ax, 0x10           ; Kernel data segment selector (change if different)
+    mov ax, 0x10           ; Kernel data segment selector
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
-
+    
     ; Now ESP points to the full 'registers_t' struct in memory on the stack,
     ; which matches the order of fields in the struct:
     ; edi, esi, ebp, esp, ebx, edx, ecx, eax
     ; ds, es, fs, gs
     ; int_no, err_code
     ; eip, cs, eflags (already on stack pushed by CPU)
-
+    
     mov eax, esp           ; pointer to registers_t struct
     push eax               ; Push the pointer to registers_t for C handler
     call isr_handler_c     ; Call the C handler to process the exception
-
+    
     add esp, 4             ; Clean up argument from stack (removes pointer to registers_t)
-
+    
     pop gs                 ; Restore segment registers
     pop fs
     pop es
     pop ds
-
+    
     popa                   ; Restore general-purpose registers
-
+    
     add esp, 8             ; Remove int_no and err_code from stack (2 dwords)
-
+    
     sti                    ; Re-enable interrupts
     iret                   ; Return from interrupt
 

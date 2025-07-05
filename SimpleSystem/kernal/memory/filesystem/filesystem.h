@@ -92,9 +92,6 @@ typedef struct {
 
 #pragma pack(pop)
 
-FAT_BootSector* bs;
-DirEntry* entries;
-
 typedef enum {
     FAT12,
     FAT16,
@@ -103,9 +100,15 @@ typedef enum {
 } FatType;
 
 typedef struct {
-    u8 sectors_per_cluster; // TODO; Remove
-
+    /**
+     * Offset in sectors
+     */
+    u8 partition_start;
+    
     u16 bytes_per_sector; // TODO; Remove
+    
+    u32 root_dir_byte;
+    //u16 root_dir_sectors;
     
     u32 total_sectors;
     u32 totalNumOfDataSectors;
@@ -113,16 +116,19 @@ typedef struct {
     u32 root_dir_start;
     u32 root_dir_sectors;
     u32 first_data_sector;
-    u32 total_sectors;
     u32 bytes_per_cluster;
-
+    
     FatType type;
+    
     FAT_BootSector* bs;
+    DirEntry* entries;
+    
+    u32 entriesLength;
 } FATSystem;
 
 // 28
 extern FATSystem* fs_createSystem(u8 partition_start);
-extern void fs_refreshEntries(void);
+extern void fs_refreshEntries(FATSystem* fs);
 
-extern void fs_open(DirEntry* file);
-extern void fs_write(const char* name);
+extern void fs_open(FATSystem* fs, DirEntry* file);
+extern void fs_write(FATSystem* fs, const char* name);

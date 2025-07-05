@@ -75,10 +75,12 @@ void handleIrqs() {
     for (int irq = 0; irq < NUM_IRQS; irq++) {
     	// Whether the IRQ should be triggered or not
     	if (irr & (1 << irq)) {
+    		//printf("IRQ; %d\n", irq);
+    		
     		if(irq_routines[irq]) {
     			irq_routines[irq]();
     		} else {
-    			//writeSerial('g');
+    			//printf("Unknown IRQ: %d\n", irq);
     		}
     		
     		// Acknowledge the interrupt

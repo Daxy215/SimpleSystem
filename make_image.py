@@ -41,6 +41,10 @@ with open("boot.bin", "rb") as f:
 with open("kernel.bin", "rb") as f:
     kernel = f.read()
 
+KERNEL_SECTORS = (len(kernel) + SECTOR_SIZE - 1) // SECTOR_SIZE
+if KERNEL_SECTORS > 128:
+    print(f"WARNING: Kernel too big! {KERNEL_SECTORS} sectors")
+
 with open("test.img", "rb") as f:
     fat16 = f.read()
 

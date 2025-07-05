@@ -179,6 +179,7 @@
     <Content Include="..\assets\py_scripts\make_fat_image.py" />
     <Content Include="..\boot.asm" />
     <Content Include="..\build.bat" />
+    <Content Include="..\build.sh" />
     <Content Include="..\isr_stubs.asm" />
     <Content Include="..\linker.ld" />
     <Content Include="..\make_image.py" />
