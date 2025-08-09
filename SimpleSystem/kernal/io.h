@@ -4,16 +4,21 @@
 // Loops timeout
 #define TIMEOUT 100000
 
-typedef unsigned char      u8 ;
-typedef          char      i8 ;
+typedef unsigned char       u8 ;
+typedef          char       i8 ;
 
-typedef unsigned short     u16;
-typedef          short     i16;
+typedef unsigned short      u16;
+typedef          short      i16;
 
-typedef unsigned long      u32;
-typedef signed   long      s32;
-typedef          long      i32;
+typedef unsigned long       u32;
+typedef signed   long       s32;
+typedef          long       i32;
 
+typedef unsigned int	   uintptr_t;
+
+typedef void (*irq_handler_t)(void);
+
+// 
 #ifdef _WIN64
     typedef unsigned __int64 size_t;
     typedef __int64          ptrdiff_t;
@@ -25,11 +30,7 @@ typedef          long      i32;
 #endif
 
 #ifndef NULL
-    #ifdef __cplusplus
-        #define NULL 0
-    #else
-        #define NULL ((void *)0)
-    #endif
+    #define NULL ((void *)0)
 #endif
 
 #define nullptr NULL
@@ -46,10 +47,6 @@ typedef int			intptr_t;
 #  define __intptr_t_defined
 # endif
 # endif
-
-typedef unsigned int		uintptr_t;
-
-typedef void (*irq_handler_t)(void);
 
 //volatile unsigned short* video = (unsigned short*)0xB8000;
 
@@ -172,6 +169,7 @@ static inline void lba_write(u32 lba, u32 count, const void* buffer) {
         outb(0x1F7, 0x30);                          // WRITE SECTOR(S)
         
         for (int i = 0; i < sectors_to_write; i++) {
+            // TODO; Add a checker
             while (!(inb(0x1F7) & 0x08));           // Wait for DRQ
             outsw(0x1F0, buffer, 256);        // Write 512 bytes (256 words)
             buffer += 512;

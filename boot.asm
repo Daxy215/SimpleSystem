@@ -14,54 +14,16 @@ _start:
     mov sp, 0x7C00              ; sp = 0x7C00
     
     ; Load kernel
-    mov si, msg_loading
-    call print
-    call print_newline
     call load_kernal
     
-    ; I forgot what this even does XD
-   mov ax, 0x1000
-   mov es, ax
-   mov bx, 0x0000
-    mov ax, [es:bx]            ; Load from address into EAX
-    movzx eax, word [es:bx]
-   mov eax, [es:bx]
-    
-    call print_hex
-    call print_newline
-    
-    mov si, msg_loaded
-    call print
-    call print_newline
-    
-    mov ax, 0x1000
-    mov es, ax
-    xor bx, bx
-    mov cx, 16
-    .debug_loop:
-        mov al, [es:bx]
-        call print_hex
-        mov al, ' '
-        int 0x10
-        inc bx
-        loop .debug_loop
-    call print_newline
-    
     ; Switch to protected mode
-    mov si, msg_gdt_load
-    call print
-    call print_newline
     
     cli                         ; Disable interrrupts
     lgdt [gdt_descriptor]
     
     call enable_a20             ; Enable A20
     
-    mov si, msg_a20_enabled
-    call print
-    call print_newline
-    
-    ; Setup framebuffer
+     ; Setup framebuffer
     call set_vesa_mode
     
     ; Set CR0.PE (Protection Enable)
@@ -260,10 +222,9 @@ protected_mode:
     jmp CODE_SEG:0x10000
     ; jmp CODE_SEG:0x0000
     
-    hlt
-    ; jmp $               ; Infinite loop?
+    ; hlt
+    jmp $               ; Infinite loop?
 
-; GDT               - TODO; Learn more about this
 gdt_start:
     dq 0x0
 
@@ -274,7 +235,7 @@ gdt_code:
     db 10011010b
     db 11001111b
     db 0x0
- 
+
 gdt_data:
     dw 0xFFFF
     dw 0x0
@@ -292,19 +253,13 @@ gdt_descriptor:
 CODE_SEG equ (gdt_code - gdt_start) | 0x08
 DATA_SEG equ (gdt_data - gdt_start) | 0x10
 
-msg_loading    db "Loading...",0
 msg_vesa_fail  db "VESA fail!",0
-msg_disk_error db "Disk error!", 0
-msg_sectors_read db " Sectors read: ", 0
+msg_disk_error db "Disk error!", 00
+msg_no_longmode db "Soo.. ur CPU is trash..", 0
 
 times 510 - ($ - $$) db 0
 
 dw 0xAA55
-
-msg_loaded     db "Kernel loaded successfully", 0
-msg_gdt_load    db "Loading GDT...", 0
-msg_a20_enabled db "A20 Enabled", 0
-msg_jumping    db "Jumping to kernal", 0
 
 vesa_mode_info_buffer:
     times 256 db 0

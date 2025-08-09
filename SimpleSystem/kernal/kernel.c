@@ -269,72 +269,72 @@ void kernel_main(void) {
         u32 sector_count = (full_size + 511) / 512;
         
         printf("Reading %d sectors\n", sector_count);
-    
+        
         u8* buffer = memalign(4096, sector_count * 512);
-    
+        
         if (!buffer) {
             printf("Allocation failed\n");
             return;
         }
-    
+        
         memset(buffer, 0, sector_count * 512);
         lba_read(150, sector_count, buffer);
-    
+        
         if (buffer[0] != 'B' || buffer[1] != 'M') {
             printf("Not a valid BMP file! 0=%d 1=%d\n", buffer[55], buffer[1]);
-        
+            
             return;
         }
         
         fileHeader = (BITMAPFILEHEADER*)buffer;
         BITMAPINFOHEADER* infoHeader = (BITMAPINFOHEADER*)(buffer + sizeof(BITMAPFILEHEADER));
-    
+        
         printf("BITMAPFILEHEADER: %d bytes\n", sizeof(BITMAPFILEHEADER));
         printf("BITMAPINFOHEADER: %d bytes\n", sizeof(BITMAPINFOHEADER));
-    
+        
         if (infoHeader->biWidth <= 0 || infoHeader->biHeight == 0) {
             printf("Invalid BMP dimensions!\n");
             return;
         }
-    
+        
         u32 pixel_offset = fileHeader->bfOffBits;
         if (pixel_offset >= sector_count * 512) {
             printf("Invalid pixel data offset! = %x\n", pixel_offset);
             return;
         }
-    
+        
         int width = infoHeader->biWidth;
         int height = infoHeader->biHeight;
         int rowSize = ((width * 3 + 3) / 4) * 4;
         u8* pixelData = buffer + fileHeader->bfOffBits;
-    
+        
         printf("Width=%d, Height=%d, BitCount=%d\n", 
            width, height, infoHeader->biBitCount);
-
+        
         // Verify this is a 24-bit BMP
         if (infoHeader->biBitCount != 24) {
             printf("Only 24-bit BMPs supported!\n");
             return;
         }
-    
+        
         int screen_width = VESA_X_RES;
         int screen_height = VESA_Y_RES;
-    
+        
         int draw_width = width < screen_width ? width : screen_width;
         int draw_height = height < screen_height ? height : screen_height;
-    
+        
         u8* row;
-    
+        
         for (int y = 0; y < draw_height; y++) {
             row = pixelData + (height - 1 - y) * rowSize;
-        
+            
             for (int x = 0; x < draw_width; x++) {
                 int px = x * 3;
-            
+                
                 u8 b = row[px];
                 u8 g = row[px + 1];
                 u8 r = row[px + 2];
-            
+                
                 put_pixel(x, y, r, g, b);
             }
         }

@@ -130,21 +130,8 @@ void fs_refreshEntries(FATSystem* fs) {
     }
 }
 
-void fs_open(FATSystem* fs, DirEntry* file) {
-    char name[12];
-    u8* src = file->name;
-    
-    for (int i = 0; i < 11; i++) {
-        name[i] = src[i];
-    }
-    
-    name[11] = '\0';
-    
-    printf("Reading %s\n", name);
-    printf("File size: %x bytes\n", file->size);
-    
+u8* fs_open(FATSystem* fs, DirEntry* file) {
     size_t sector_count = (file->size + 511) / 512;
-    printf("Sectors to read from file: %x\n", sector_count);
     u8* fileBuffer = memalign(4096, sector_count * 512);
     
     printf("Reading file...\n");
@@ -168,11 +155,6 @@ void fs_open(FATSystem* fs, DirEntry* file) {
         u32 sector = fs->partition_start +
              fs->first_data_sector +
              (cluster - 2) * fs->bs->common.sectors_per_cluster;
-        
-        printf("first: %d\n", fs->first_data_sector);
-        printf("cluster - 2: %d\n", cluster - 2);
-        printf("sector: %d\n", fs->bs->common.sectors_per_cluster);
-        printf("Reading at: %d %x\n", sector, sector);
         
         lba_read(sector, fs->bs->common.sectors_per_cluster,
             fileBuffer + offset);
@@ -232,6 +214,8 @@ void fs_open(FATSystem* fs, DirEntry* file) {
     printf("byte 0: %c byte 1: %c\n", fileBuffer[0], fileBuffer[1]);
     
     printf("File has been fully read!\n");
+    
+    return fileBuffer;
 }
 
 // TODO; GLHF :D

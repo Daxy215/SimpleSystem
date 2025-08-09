@@ -35,10 +35,10 @@ i686-elf-ld -g -T ..\linker.ld -o kernel.elf kernel.o bmp.o idt.o serial.o keybo
 echo Converting ELF to binary...
 i686-elf-objcopy -O binary kernel.elf kernel.bin || exit /b 1
 
-echo Creating a FAT16 image through python..
-python ..\assets\py_scripts\make_fat_image.py || exit /b 1
+:: echo Creating a FAT16 image through python..
+:: python ..\assets\py_scripts\make_fat_image.py || exit /b 1
 
-:: Pad kernel to multiple of 512 bytes (1 sector)
+:: Create OS image
 echo Creating OS image using Python...
 python ..\make_image.py || exit /b 1
 

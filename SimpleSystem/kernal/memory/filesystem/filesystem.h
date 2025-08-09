@@ -130,5 +130,5 @@ typedef struct {
 extern FATSystem* fs_createSystem(u8 partition_start);
 extern void fs_refreshEntries(FATSystem* fs);
 
-extern void fs_open(FATSystem* fs, DirEntry* file);
+extern u8* fs_open(FATSystem* fs, DirEntry* file);
 extern void fs_write(FATSystem* fs, const char* name);

@@ -1,32 +1,3 @@
-# import os
-# 
-# SECTOR_SIZE = 512
-# FLOPPY_SECTORS = 2880
-# IMAGE_SIZE = SECTOR_SIZE * FLOPPY_SECTORS
-# 
-# with open("boot.bin", "rb") as f:
-#     boot = f.read()
-# 
-# with open("kernel.bin", "rb") as f:
-#     kernel = f.read()
-# 
-# # Create blank image
-# image = bytearray(IMAGE_SIZE)
-# 
-# # Insert boot sector at offset 0
-# image[:len(boot)] = boot
-# 
-# # Insert kernel at sector 1 (offset 512)
-# image[SECTOR_SIZE:SECTOR_SIZE + len(kernel)] = kernel
-# 
-# # Write to output file
-# with open("os-image.bin", "wb") as f:
-#     f.write(image)
-# 
-# print("os-image.bin created successfully.")
-
-import os
-
 SECTOR_SIZE = 512
 FLOPPY_SECTORS = 2880
 IMAGE_SIZE = SECTOR_SIZE * FLOPPY_SECTORS

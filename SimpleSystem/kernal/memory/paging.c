@@ -84,27 +84,19 @@ void pager_enable(Pager* pager) {
     // Load CR3
     asm volatile("mov %0, %%cr3" :: "r"(pager->page_directory));
     
-    // Enable paging
     u32 cr0;
-    /*asm volatile(
-        "mov %%cr0, %0\n\t"
-        "or $0x80000001, %0\n\t"
-        "mov %0, %%cr0"
-        : "=r"(cr0)
-        :
-        : "memory"
-    );*/
     
-    // Enable PSE (bit 4 in CR4)
+    // Enable PSE (bit 4 in CR4),
+    // to allow 4 MB pages instead of 4 KB
     asm volatile("mov %%cr4, %%eax\n\t"
                  "or $0x00000010, %%eax\n\t"  // PSE bit
                  "mov %%eax, %%cr4" ::: "eax");
     
     asm volatile(
-        "mov %%cr0, %0\n\t"
-        "or $0x80000000, %0\n\t"
-        "mov %0, %%cr0\n\t"
-        "jmp 1f\n\t"
+        "mov %%cr0, %0\n\t"         // Read current value of CR0
+        "or $0x80000000, %0\n\t"    // Set PG which enables paging
+        "mov %0, %%cr0\n\t"         // Write back modified CR0 value
+        "jmp 1f\n\t"                // Flush pipeline
         "1:"
         : "=r"(cr0)
         :
