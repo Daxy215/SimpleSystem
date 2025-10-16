@@ -48,6 +48,15 @@ typedef int			intptr_t;
 # endif
 # endif
 
+// Uhh to shut up compiler
+#ifdef _MSC_VER
+    #define PACKED
+    #define ALIGNED(x) __declspec(align(x))
+#else
+    #define PACKED __attribute__((packed))
+    #define ALIGNED(x) __attribute__((aligned(x)))
+#endif
+
 //volatile unsigned short* video = (unsigned short*)0xB8000;
 
 // https://wiki.osdev.org/Inline_Assembly/Examples
@@ -57,6 +66,10 @@ static inline void outb(unsigned short port, u8 val) {
 }
 
 static inline void outl(unsigned short port, u32 val) {
+    __asm__ volatile ("outl %0, %1" : : "a"(val), "Nd"(port));
+}
+
+static inline void outw(u16 port, u32 val) {
     __asm__ volatile ("outl %0, %1" : : "a"(val), "Nd"(port));
 }
 
@@ -76,6 +89,14 @@ static inline u8 inb(unsigned short port) {
     return ret;
 }
 
+static inline u16 inw(u16 port) {
+    u16 value;
+    
+    asm volatile ("inw %1, %0" : "=a"(value) : "d"(port));
+    
+    return value;
+}
+
 static inline void insw(u16 port, void* addr, u32 count) {
     asm volatile (
         "rep insw"
@@ -83,6 +104,12 @@ static inline void insw(u16 port, void* addr, u32 count) {
         : "d"(port)
         : "memory"
     );
+}
+
+static inline u32 inl(u16 port) {
+    u32 ret;
+    __asm__ volatile ("inl %1, %0" : "=a"(ret) : "Nd"(port));
+    return ret;
 }
 
 static inline void io_wait(void) {

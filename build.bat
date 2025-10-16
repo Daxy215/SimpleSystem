@@ -55,6 +55,7 @@ qemu-system-i386 ^
   -drive format=raw,file=os-image.bin,index=0,if=ide ^
   -serial stdio ^
   -d int,cpu_reset,guest_errors ^
+  -usb -device usb-mouse ^
   -D qemu.log
 
 popd

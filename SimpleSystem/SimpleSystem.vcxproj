@@ -160,6 +160,7 @@
     <ClCompile Include="kernal\memory\filesystem\filesystem.c" />
     <ClCompile Include="kernal\memory\paging.c" />
     <ClCompile Include="kernal\mouse\mouse.c" />
+    <ClCompile Include="kernal\pci\pci.c" />
     <ClCompile Include="kernal\pic\pic.c" />
     <ClCompile Include="kernal\serial\serial.c" />
   </ItemGroup>
@@ -172,6 +173,7 @@
     <ClInclude Include="kernal\memory\filesystem\filesystem.h" />
     <ClInclude Include="kernal\memory\paging.h" />
     <ClInclude Include="kernal\mouse\mouse.h" />
+    <ClInclude Include="kernal\pci\pci.h" />
     <ClInclude Include="kernal\pic\pic.h" />
     <ClInclude Include="kernal\serial\serial.h" />
   </ItemGroup>

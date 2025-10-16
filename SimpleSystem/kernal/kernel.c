@@ -7,6 +7,7 @@
 #include "memory/filesystem/filesystem.h"
 
 #include "memory/paging.h"
+#include "pci/pci.h"
 
 // Explicit declaration before use
 void kernel_main(void) __attribute__((section(".text.main")));
@@ -91,7 +92,7 @@ void print_stack_trace(uintptr_t ebp) {
         printf("  Frame %x: EBP=%x, RET=%x\n", frame, ebp, ret_addr);
         
         if (next_ebp == 0 || next_ebp <= ebp) break; // prevent infinite loop
-
+        
         ebp = next_ebp;
         frame++;
     }
@@ -256,7 +257,7 @@ void kernel_main(void) {
     
     fillrect(100, 100, 255, 0, 0, 200, 200);
     
-    FATSystem* system = fs_createSystem(34);
+    FATSystem* system = fs_createSystem(42);
     fs_open(system, &system->entries[1]);
     
     // Draws a .bmp test image
@@ -345,6 +346,15 @@ void kernel_main(void) {
     //    printf("Not a valid BMP file! 0=%d 1=%d\n", fileBufer[0], fileBufer[1]);
     //    return;
     //}
+    
+    // PCI
+    for (u16 bus = 0; bus < 256; bus++) {
+        for (u8 device = 0; device < 32; device++) {
+            for (u8 func = 0; func < 8; func++) {
+                pciCheckVendor(bus, device, func);
+            }
+        }
+    }
     
     // Main loop
     while(1) {
