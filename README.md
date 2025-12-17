@@ -21,7 +21,6 @@ It features a protected-mode kernel, custom drivers, graphics support, and basic
 - **VESA Graphics Initialization** – Enables high-resolution graphics modes.
 - **Linear Framebuffer Rendering** – Direct pixel manipulation for fast rendering.
 - **BMP Image Loading** – Load images for UI elements and graphics.
-- **Alpha-Blended Cursor** – Smooth, transparent mouse cursor.
 
 ### Storage & Filesystem
 - **FAT16/32 Support** – Read files from FAT16 and FAT32 drives.
@@ -42,3 +41,8 @@ It features a protected-mode kernel, custom drivers, graphics support, and basic
 - [ ] TODO; Add screenshots of the OS
 
 ---
+## TODO
+- [ ] Add support for UHCI
+- [ ] Add better UI management system 
+- [ ] Add a simple console
+- [ ] Improve FAT handling
