@@ -1,4 +1,4 @@
-# CustomOS
+# Shrimple OS
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![OS: x86](https://img.shields.io/badge/Architecture-x86-blue.svg)](https://en.wikipedia.org/wiki/X86)
@@ -36,9 +36,6 @@ It features a protected-mode kernel, custom drivers, graphics support, and basic
 
 ---
 
-## Screenshots
-
-- [ ] TODO; Add screenshots of the OS
 
 ---
 ## TODO
