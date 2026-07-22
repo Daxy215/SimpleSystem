@@ -4,7 +4,7 @@
 [![OS: x86](https://img.shields.io/badge/Architecture-x86-blue.svg)](https://en.wikipedia.org/wiki/X86)
 [![Status: Experimental](https://img.shields.io/badge/Status-Experimental-orange.svg)]()
 
-Shrimple is a simple hobbyist operating system built from scratch in x86 assembly and C.
+ShrimpleOS is a simple hobbyist operating system built from scratch in x86 assembly and C.
 It features a protected-mode kernel, custom drivers, graphics support, and basic filesystem handling.  
 
 ---
